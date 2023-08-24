@@ -1,0 +1,6 @@
+version: '3'
+services:
+  my-golang-app:
+    build: .
+    ports:
+      - "3030:3030"
