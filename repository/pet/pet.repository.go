@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fakestore_go/entity"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"io"
 	"net/http"
 )
@@ -13,13 +14,43 @@ import (
 type Repository struct {
 	rootURl string
 	httpCli *http.Client
+	db      *sqlx.DB
 }
 
-func New(httpCli *http.Client) *Repository {
+func New(httpCli *http.Client, db *sqlx.DB) *Repository {
 	return &Repository{
 		rootURl: "https://petstore.swagger.io/v2",
 		httpCli: httpCli,
+		db:      db,
 	}
+}
+
+func (r *Repository) InsertNewPetToDatabase(req entity.Pet) (*entity.Pet, error) {
+	q := "INSERT INTO pets(name, status) VALUES(?, ?)"
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	result, err := tx.Exec(q, req.Name, req.Status)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	lastID, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	tx.Commit()
+	req.ID = lastID
+	return &req, err
+}
+
+func (r *Repository) GetPetFromDatabase(petID int64) (*entity.Pet, error) {
+	q := "SELECT id,name, status FROM pets WHERE id = ?"
+	resp := entity.Pet{}
+	err := r.db.Get(&resp, q, petID)
+	return &resp, err
 }
 
 func (r *Repository) InsertNewPet(req entity.Pet) (map[string]interface{}, error) {
@@ -28,7 +59,7 @@ func (r *Repository) InsertNewPet(req entity.Pet) (map[string]interface{}, error
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +94,7 @@ func (r *Repository) InsertNewPet(req entity.Pet) (map[string]interface{}, error
 
 func (r *Repository) GetPetByID(petID int64) (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/pet/%d", r.rootURl, petID)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

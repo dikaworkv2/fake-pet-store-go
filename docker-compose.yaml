@@ -4,3 +4,14 @@ services:
     build: .
     ports:
       - "3030:3030"
+    depends_on:
+      - mysql-db
+  mysql-db:
+    image: mysql:8.0
+    environment:
+        MYSQL_ROOT_PASSWORD: root_password # Change this to your desired root password
+        MYSQL_DATABASE: mydatabase # Change this to your desired database name
+        MYSQL_USER: myuser # Change this to your desired MySQL username
+        MYSQL_PASSWORD: user_password # Change this to your desired MySQL password
+    ports:
+        - "3306:3306" # Expose the MySQL port

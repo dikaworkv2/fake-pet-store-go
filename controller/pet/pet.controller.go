@@ -36,7 +36,7 @@ func (c *Controller) InsertNewPet(ctx *fiber.Ctx) error {
 		c.logger.Error(err)
 		return err
 	}
-	resp, err := c.repo.InsertNewPet(req)
+	resp, err := c.repo.InsertNewPetToDatabase(req)
 	if err != nil {
 		c.logger.Error(err)
 		return ctx.Status(http.StatusBadRequest).JSON(resp)
@@ -51,10 +51,15 @@ func (c *Controller) GetPet(ctx *fiber.Ctx) error {
 		c.logger.Error(err)
 		return ctx.Status(http.StatusBadRequest).SendString(fmt.Sprintf("%s is not an integer", strPetID))
 	}
-	resp, err := c.repo.GetPetByID(petID)
+	resp, err := c.repo.GetPetFromDatabase(petID)
 	if err != nil {
 		c.logger.Error(err)
-		return ctx.Status(http.StatusBadRequest).JSON(resp)
+		rp, err := c.repo.GetPetByID(petID)
+		if err != nil {
+			c.logger.Error(err)
+			return ctx.Status(http.StatusBadRequest).SendString("cannot find pet")
+		}
+		return ctx.JSON(rp)
 	}
 	return ctx.JSON(resp)
 }
